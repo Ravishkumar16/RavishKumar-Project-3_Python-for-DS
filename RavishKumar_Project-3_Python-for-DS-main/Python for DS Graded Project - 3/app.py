@@ -6,6 +6,7 @@ import sklearn
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
 import re
+from sklearn.preprocessing import OneHotEncoder
  
 app = Flask(__name__)
  
@@ -14,12 +15,13 @@ app.secret_key = 'your secret key'
  
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
+app.config['MYSQL_PASSWORD'] = 'root'
 app.config['MYSQL_DB'] = 'login_users'
  
 mysql = MySQL(app)
 
 model = pickle.load(open('model.pkl','rb'))
+
 
 @app.route('/', methods=['GET'])
 def home():
@@ -32,12 +34,12 @@ def login():
         username = request.form['username']
         password = request.form['password']
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM loan_users WHERE userid = % s AND userpwd = % s', (username, password, ))
+        cursor.execute('SELECT * FROM loan_users WHERE username = % s AND userpwd = % s', (username, password, ))
         account = cursor.fetchone()
         if account:
             session['loggedin'] = True
-            session['id'] = account['id']
-            session['username'] = account['userid'] 
+            session['id'] = account['Sno']
+            session['username'] = account['username'] 
             msg = 'Logged in successfully !'
             return render_template('predict.html', msg = msg)
         else:
@@ -59,7 +61,7 @@ def register():
         password = request.form['password']
         email = request.form['email']
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM loan_users WHERE userid = % s', (username, ))
+        cursor.execute('SELECT * FROM loan_users WHERE username = % s', (username, ))
         account = cursor.fetchone()
         if account:
             msg = 'Account already exists !'
@@ -79,6 +81,7 @@ def register():
     return render_template('register.html', msg = msg)
 
 @app.route("/predict", methods=['POST'])
+
 def predict():
     if request.method == 'POST':
         Gender=int(request.form['Gender'])
@@ -86,13 +89,14 @@ def predict():
         Dependents=int(request.form['Dependents'])
         Education=int(request.form['Education'])
         Self_Employed=int(request.form['Self_Employed'])
+        Age=int(request.form['Age'])
         Income=float(request.form['Income'])
         Loan_Amount=float(request.form['Loan_Amount'])
         Loan_Term=int(request.form['Loan_Term'])
         Credit_History=int(request.form['Credit_History'])
         Property_Area=int(request.form['Property_Area'])
         
-        prediction=model.predict([[Gender,Married,Dependents,Education,Self_Employed,Income,Loan_Amount,Loan_Term,Credit_History,Property_Area]])
+        prediction=model.predict([[Gender,Married,Dependents,Education,Self_Employed,Age,Income,Loan_Amount,Loan_Term,Credit_History,Property_Area]])
         if prediction[0] >= 0.50:
             ptext="Congratulation!!! You are eligible for the Loan"
         else:
